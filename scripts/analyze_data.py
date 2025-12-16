@@ -18,9 +18,9 @@ def main():
     logger.info("Analyzing processed data...")
 
     for csv_file in processed_data_path.glob("*_processed.csv"):
-        logger.info(f"\n{'='*60}")
+
         logger.info(f"File: {csv_file.name}")
-        logger.info(f"{'='*60}")
+
 
         df = pd.read_csv(csv_file)
 
