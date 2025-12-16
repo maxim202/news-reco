@@ -1,92 +1,63 @@
-"""Analyze data warehouse."""
+"""Analyze processed news data."""
 import sys
 from pathlib import Path
+
+import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config.logging_config import setup_logging
-from src.warehouse.connection import DatabaseManager
-from src.warehouse.queries import WarehouseQueries
 
 logger = setup_logging()
 
 
-def print_table(data: list, title: str) -> None:
-    """Print results as table."""
-    if not data:
-        logger.info(f"No data for {title}")
-        return
-
-    logger.info(f"\n{title}")
-    logger.info("=" * 80)
-
-    # Get column names
-    columns = list(data[0].keys())
-
-    # Print header
-    header = " | ".join(f"{col:20}" for col in columns)
-    logger.info(header)
-
-
-    # Print rows
-    for row in data:
-        values = [
-            str(row[col])[:20].ljust(20) for col in columns
-        ]
-        logger.info(" | ".join(values))
-
-
-
-
 def main():
-    """Analyze warehouse."""
-    logger.info("Starting Data Warehouse Analysis...\n")
+    """Analyze processed data."""
+    processed_data_path = Path("data/processed")
 
-    db = DatabaseManager()
+    logger.info("Analyzing processed data...")
 
-    try:
-        db.connect()
-        queries = WarehouseQueries(db)
+    for csv_file in processed_data_path.glob("*_processed.csv"):
 
-        # Summary
-        summary = queries.get_warehouse_summary()
-        logger.info("\nWAREHOUSE SUMMARY")
-    
-        for key, value in summary.items():
-            logger.info(f"  {key}: {value}")
+        logger.info(f"File: {csv_file.name}")
 
-        # Articles by source
-        data = queries.get_articles_by_source()
-        print_table(data, "Articles by Source")
 
-        # Articles by day of week
-        data = queries.get_articles_by_day_of_week()
-        print_table(data, "Articles by Day of Week")
+        df = pd.read_csv(csv_file)
 
-        # Top authors
-        data = queries.get_articles_by_author(limit=5)
-        print_table(data, "Top 5 Authors by Article Count")
+        # Basic info
+        logger.info(f"\nShape: {df.shape[0]} rows, {df.shape[1]} columns")
 
-        # Images statistics
-        data = queries.get_articles_with_images_stats()
-        print_table(data, "Articles with/without Images")
+        # Columns
+        logger.info(f"\nColumns: {list(df.columns)}")
 
-        # Content length distribution
-        data = queries.get_content_length_distribution()
-        print_table(data, "Content Length Distribution")
+        # Data types
+        logger.info(f"\nData Types:\n{df.dtypes}")
 
-        # Top longest articles
-        data = queries.get_top_articles_by_length(limit=3)
-        print_table(data, "Top 3 Longest Articles")
+        # Missing values
+        logger.info(f"\nMissing Values:\n{df.isnull().sum()}")
 
-        logger.info("\nAnalysis completed!")
+        # Statistics for numeric columns
+        logger.info(f"\nStatistics for numeric columns:\n{df.describe()}")
 
-    except Exception as e:
-        logger.error(f"Analysis failed: {e}")
-        raise
+        # Day of week distribution
+        if "day_of_week" in df.columns:
+            logger.info(
+                f"\nArticles by Day of Week:\n{df['day_of_week'].value_counts()}"
+            )
 
-    finally:
-        db.disconnect()
+        # Has image distribution
+        if "has_image" in df.columns:
+            logger.info(
+                f"\nArticles with Image: {df['has_image'].sum()} / {len(df)}"
+            )
+
+        # Content length stats
+        if "content_length" in df.columns:
+            logger.info(
+                f"\nContent Length - Min: {df['content_length'].min()}, "
+                f"Max: {df['content_length'].max()}, "
+                f"Mean: {df['content_length'].mean():.0f}"
+            )
 
 
 if __name__ == "__main__":
